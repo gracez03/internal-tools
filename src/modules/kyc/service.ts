@@ -44,12 +44,7 @@ export async function getCaseWithHistory(actor: Actor | null, caseId: string) {
   requirePermission(actor, "cases:read");
   const kycCase = await prisma.kycCase.findUnique({
     where: { id: caseId },
-    include: {
-      history: {
-        orderBy: { createdAt: "asc" },
-        include: { actor: { select: { name: true, email: true, role: true } } },
-      },
-    },
+    include: { history: { orderBy: { createdAt: "asc" } } },
   });
   if (!kycCase) throw new AppError("not_found", `Case ${caseId} not found`);
   return kycCase;

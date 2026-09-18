@@ -68,6 +68,8 @@ async function seedCases() {
             caseId: c.id,
             actorId: reviewer.id,
             actorEmail: reviewer.email,
+            actorName: reviewer.name,
+            actorRole: reviewer.role,
             action: c.status,
             previousStatus: "pending",
             newStatus: c.status,

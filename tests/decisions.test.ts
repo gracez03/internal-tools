@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { POST as decide } from "@/app/api/cases/[id]/decision/route";
+import { GET as getCase } from "@/app/api/cases/[id]/route";
 import { REVIEWER, VIEWER, jsonRequest, params, signIn } from "./helpers";
 
 let reviewerCookie: string;
@@ -82,6 +83,8 @@ describe("reviewer decisions", () => {
     const h = c.history[0]!;
     expect(h.actorId).toBe(REVIEWER.id);
     expect(h.actorEmail).toBe(REVIEWER.email);
+    expect(h.actorName).toBe(REVIEWER.name);
+    expect(h.actorRole).toBe(REVIEWER.role);
     expect(h.action).toBe("approved");
     expect(h.previousStatus).toBe("pending");
     expect(h.newStatus).toBe("approved");
@@ -97,6 +100,45 @@ describe("reviewer decisions", () => {
     expect(c.status).toBe("rejected");
     expect(c.history).toHaveLength(1);
     expect(c.history[0]!.newStatus).toBe("rejected");
+  });
+
+  it("history keeps the actor's name and role as they were at decision time", async () => {
+    const CASE = "KYC-1009";
+    const res = await post(CASE, { decision: "approve", reason: "Documents consistent." });
+    expect(res.status).toBe(200);
+
+    const readHistory = async () => {
+      const r = await getCase(jsonRequest(`/api/cases/${CASE}`, { cookie: reviewerCookie }), params(CASE));
+      expect(r.status).toBe(200);
+      const body = await r.json();
+      expect(body.case.history).toHaveLength(1);
+      return body.case.history[0] as Record<string, unknown>;
+    };
+
+    const before = await readHistory();
+    expect(before).toMatchObject({ actorName: REVIEWER.name, actorRole: REVIEWER.role });
+    expect(before).not.toHaveProperty("actor");
+
+    try {
+      await prisma.user.update({
+        where: { id: REVIEWER.id },
+        data: { name: "Renamed Person", role: "viewer" },
+      });
+      const after = await readHistory();
+      expect(after).toMatchObject({
+        actorName: REVIEWER.name,
+        actorRole: REVIEWER.role,
+        actorEmail: REVIEWER.email,
+      });
+      const row = await prisma.caseHistory.findFirstOrThrow({ where: { caseId: CASE } });
+      expect(row.actorName).toBe(REVIEWER.name);
+      expect(row.actorRole).toBe(REVIEWER.role);
+    } finally {
+      await prisma.user.update({
+        where: { id: REVIEWER.id },
+        data: { name: REVIEWER.name, role: REVIEWER.role },
+      });
+    }
   });
 
   it("ignores client-supplied actor, role and timestamp", async () => {

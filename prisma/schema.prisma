@@ -106,7 +106,10 @@ model CaseHistory {
   case           KycCase  @relation(fields: [caseId], references: [id])
   actorId        String
   actor          User     @relation(fields: [actorId], references: [id])
+  // Actor snapshot at decision time; the history view renders only these.
   actorEmail     String
+  actorName      String
+  actorRole      String
   // "approved" | "rejected"
   action         String
   previousStatus String

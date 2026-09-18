@@ -24,6 +24,8 @@ export async function appendHistory(
       caseId: entry.caseId,
       actorId: actor.id,
       actorEmail: actor.email,
+      actorName: actor.name,
+      actorRole: actor.role,
       action: entry.action,
       previousStatus: entry.previousStatus,
       newStatus: entry.newStatus,

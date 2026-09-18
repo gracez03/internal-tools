@@ -22,7 +22,7 @@ const historyColumns: Column<HistoryRow>[] = [
     header: "Who",
     render: (h) => (
       <>
-        {h.actor.name} <span className="muted">({h.actorEmail}, {h.actor.role})</span>
+        {h.actorName} <span className="muted">({h.actorEmail}, {h.actorRole})</span>
       </>
     ),
   },
