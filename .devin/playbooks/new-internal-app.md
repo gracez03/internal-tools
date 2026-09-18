@@ -34,7 +34,13 @@ In this order, before writing anything:
 
 Then run the baseline on `main` and record the numbers before you change
 anything: `npm ci && npm run setup:demo && npm run typecheck && npm test`
-(47 tests at the time of writing).
+(47 tests at the time of writing). Note that `setup:demo` leaves a `.env` and
+`prisma/dev.db` behind, and later `setup:demo` runs on your branch reuse them
+(`migrate deploy` adds new migrations; the seed skips existing rows). `npm test`
+is unaffected — it resets its own `prisma/test.db` — but before you smoke-test
+`npm run dev` / `npm start` on the branch, or whenever you switch between
+branches with different migrations, run `npm run reset:demo:destructive` so
+the demo DB reflects the branch you are on.
 
 ## 2. Build order
 
@@ -48,7 +54,10 @@ commit leaves `npm run typecheck` and `npm test` green.
    `prisma/seed.ts` (check-then-create per row, like `seedRefunds`).
 2. **Module + UI:** add the permission to `src/lib/authz.ts` (union + role sets);
    `src/modules/<module>/types.ts` (status list, Zod schema, per-field filter
-   parser that returns `{ filters, invalid }`); `src/modules/<module>/service.ts`
+   parser that returns `{ filters, invalid }` — copy `parseRefundListFilters`
+   for a single filter, `parseCaseListFilters` in `src/modules/kyc/types.ts`
+   for several, and bring its "keeps valid filters when another one is
+   invalid" test with it); `src/modules/<module>/service.ts`
    whose every function starts with `requirePermission(actor, ...)`;
    `src/app/api/<module>/route.ts` exporting only the verbs the module needs;
    `src/app/<module>/{page,Filters,loading,error}.tsx`; nav item in
@@ -59,13 +68,29 @@ commit leaves `npm run typecheck` and `npm test` green.
 
 **Module with a decision/write path (what PR #2 did, in five milestones):**
 
-1. schema + migration (incl. append-only trigger) + seed
+0. **Decide where its history goes before touching the schema.** The shared
+   writer is not generic: `appendHistory` in `src/lib/history.ts` takes a
+   `caseId` and always calls `tx.caseHistory.create`, and `case_history.caseId`
+   is a foreign key to `kyc_case`. Passing a third module's entity id to it
+   fails the foreign key (or, worse, points the row at an unrelated KYC case).
+   Nothing has been built for this yet, so it is a scope decision for the
+   reviewer, not something to pick silently. The two options are:
+   - a module-specific history table (`<module>_history` with the same
+     columns, its own append-only triggers in the migration SQL, and its own
+     writer next to the service), or
+   - generalising `case_history` / `appendHistory` to typed entities first, in
+     its own PR, with the existing 47 tests still green.
+   Either way the schema milestone below must include the history table and
+   triggers, and the tests in §5 point at *that* table.
+1. schema + migration (incl. the module's append-only trigger) + seed
 2. auth working with both seeded accounts (already exists — skip unless the
    module needs a new role, which so far nothing has)
 3. queue/list + detail, read-only
 4. decide action: `requirePermission` → Zod parse → pending-only check →
-   `$transaction` with conditional `updateMany` + `appendHistory(tx, actor, …)`
-   → 409 when `count !== 1`
+   `$transaction` with conditional `updateMany` + the module's history writer
+   (same shape as `appendHistory(tx, actor, …)`: transaction client only,
+   actor snapshot from the session, `createdAt` from the DB default) → 409
+   when `count !== 1`
 5. tests
 
 Open the PR after step 4/5 with the handoff, then run the browser test and fix
@@ -142,8 +167,9 @@ All three were real and all three patterns recur in any new module.
 2. **Reviewer history changes retroactively** — history rendered
    `h.actor.name` / `h.actor.role` through the relation, so renaming or
    downgrading a user rewrote how old decisions looked. Fix in §4.3.
-   *Check:* if your module writes history, it goes through `appendHistory`
-   and nothing joins `user` for display.
+   *Check:* if your module writes history, its writer snapshots
+   `actorEmail`/`actorName`/`actorRole` the way `appendHistory` does, and
+   nothing joins `user` for display.
 3. **Failed sign-out redirects as success** — the client button ignored the
    result of `authClient.signOut()`. Fix: check `error`, catch transport
    failures, show an inline `Alert`, navigate only on success.
@@ -201,15 +227,17 @@ and `tests/decisions.test.ts`):**
 - validation table (blank / whitespace / too-short / missing / non-string
   reason; invalid / status-instead-of-decision / missing decision) → 400 and
   nothing changes; non-JSON body → 400; unknown id → 404
-- approve and reject each record exactly one history row with actor snapshot,
-  reason, previous and new status
+- approve and reject each record exactly one row in the module's history
+  table with actor snapshot, reason, previous and new status
 - renaming or downgrading the actor afterwards changes nothing in history or
   the API response
 - client-supplied actor, role, timestamp are ignored
 - repeated or stale submission → 409, no overwrite, no extra history row
 - already-decided seeded row cannot be re-decided
 - concurrent submissions → exactly one success and one history row
-- `UPDATE` / `DELETE` on the history table are rejected by the database
+- `UPDATE` / `DELETE` on the module's history table are rejected by the
+  database (the KYC assertion is in `tests/decisions.test.ts` → "rejects UPDATE
+  and DELETE on case_history"; write the same test against the new table)
 
 **Then, before the PR:**
 
