@@ -30,6 +30,14 @@ npm run dev          # http://localhost:3000
 `setup:demo` is repeatable and non-destructive: it only creates rows that do not
 already exist, so decisions you have made in the demo are kept.
 
+### After pulling new commits
+
+Run `npm ci` again. `npm ci` (and `npm install`) regenerates the Prisma client
+via the `postinstall` script, so the generated client always matches
+`prisma/schema.prisma`. `npm run setup:demo` and `npm test` also regenerate the
+client themselves before seeding, so an existing checkout with a stale client
+(for example one that predates a newly added model) recovers on its own.
+
 ### Demo accounts
 
 | Role     | Email                  | Password             | Can do                                                    |
@@ -48,7 +56,7 @@ sign-up is disabled; accounts are created only by the seed script.
 
 | Command                            | What it does                                                                                                   |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `npm run setup:demo`               | Create `.env` (if missing) with a random `BETTER_AUTH_SECRET`, `prisma migrate deploy`, seed accounts + cases + refunds |
+| `npm run setup:demo`               | Create `.env` (if missing) with a random `BETTER_AUTH_SECRET`, `prisma generate`, `prisma migrate deploy`, seed accounts + cases + refunds |
 | `npm run reset:demo:destructive`   | **Destructive.** Drops `prisma/dev.db`, re-applies all migrations and re-seeds. All demo decisions are lost.     |
 | `npm run dev`                      | Start the Next.js dev server                                                                                   |
 | `npm run build` / `npm start`      | Production build / serve                                                                                       |
