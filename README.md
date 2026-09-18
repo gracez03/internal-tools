@@ -131,7 +131,10 @@ requests whose `Origin` host does not match the request host.
    `409` and rolls back; otherwise it appends exactly one history row via
    `src/lib/history.ts`.
 
-Actor and timestamps come from the session and the server clock. The
+Actor and timestamps come from the session and the server clock. Each history
+row snapshots the actor's id, email, name and role at decision time; the
+history view renders only those snapshot columns, so later changes to the user
+row (rename, role change) do not alter what past decisions show. The
 `case_history` table has `BEFORE UPDATE` / `BEFORE DELETE` triggers that
 `RAISE(ABORT)` (see the migration SQL), and no endpoint edits or deletes history.
 This is **not** tamper-proof or compliance-grade: anyone with access to the
@@ -173,6 +176,14 @@ sessions obtained from Better Auth. Covered:
   exactly one success and one history row
 - cross-origin decision requests are `403`
 - `UPDATE`/`DELETE` on `case_history` fail at the database level
+- changing the reviewer's name/role after a decision does not change the
+  actor shown in that case's history
+- queue filters: one invalid `status`/`risk`/`q` value is ignored and reported
+  without dropping the other, valid filters
+
+Not covered by automated tests: an authenticated cross-origin request from a
+real browser session (only the route-handler test with a foreign `Origin`
+header covers this).
 
 ## Limitations / production gaps (factual)
 
