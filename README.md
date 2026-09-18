@@ -153,7 +153,7 @@ prisma/
   seed.ts, seed-data.ts    demo accounts (Better Auth password hashing) + 20 cases + 10 refunds
 scripts/
   setup-demo.ts            non-destructive setup;  reset-demo.ts  destructive reset
-src/lib/                   SHARED foundation (no KYC knowledge)
+src/lib/                   SHARED foundation (see note below)
   db.ts                    Prisma singleton (globalThis guard)
   auth.ts                  Better Auth instance: Prisma adapter, sign-up disabled,
                            `role` field with input:false so clients can't set it
@@ -178,6 +178,10 @@ src/app/
 src/components/            AppHeader, DemoBanner, Badge, DataTable, Alert, SignOutButton
 tests/                     Vitest: authz, decisions, queue-filters, refunds-read, global-setup
 ```
+
+`history.ts` is the exception: it writes KYC case history and is coupled to
+the KycCase model. Generalising it is a design decision the next module that
+needs history will have to make.
 
 ### Where the security-relevant logic lives
 
