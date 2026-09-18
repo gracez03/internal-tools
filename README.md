@@ -2,4 +2,4 @@
 
 ## Prerequisites
 
-- Node.js >= 20 (see `.nvmrc`; run `nvm use` to select it)
+- Node.js >= 24 (see `.nvmrc`; run `nvm use` to select it)
