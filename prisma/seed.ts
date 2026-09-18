@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { hashPassword } from "better-auth/crypto";
-import { DEMO_ACCOUNTS, SEED_CASES } from "./seed-data";
+import { DEMO_ACCOUNTS, SEED_CASES, SEED_REFUNDS } from "./seed-data";
 
 // The seed is the single place PrismaClient is instantiated outside src/lib/db.ts:
 // it runs as a standalone script, not inside the Next.js process.
@@ -84,9 +84,32 @@ async function seedCases() {
   console.log(`Seeded ${created} new KYC cases (${SEED_CASES.length} total defined)`);
 }
 
+async function seedRefunds() {
+  let created = 0;
+  for (const r of SEED_REFUNDS) {
+    const exists = await prisma.refundRequest.findUnique({ where: { id: r.id } });
+    if (exists) continue;
+    await prisma.refundRequest.create({
+      data: {
+        id: r.id,
+        customerName: r.customerName,
+        email: r.email,
+        amountCents: r.amountCents,
+        currency: r.currency,
+        status: r.status,
+        requestedAt: new Date(r.requestedAt),
+        reason: r.reason,
+      },
+    });
+    created++;
+  }
+  console.log(`Seeded ${created} new refund requests (${SEED_REFUNDS.length} total defined)`);
+}
+
 async function main() {
   await seedAccounts();
   await seedCases();
+  await seedRefunds();
 }
 
 main()

@@ -53,3 +53,30 @@ export const SEED_CASES: SeedCase[] = [
   { id: "KYC-1019", applicantName: "Sasha Moreno", email: "sasha.moreno@example.com", submittedAt: "2026-09-10T11:25:00Z", riskLevel: "medium", status: "pending", summary: "Synthetic: mismatch between declared and detected IP geolocation." },
   { id: "KYC-1020", applicantName: "Tatum Greyling", email: "tatum.greyling@example.com", submittedAt: "2026-09-10T18:10:00Z", riskLevel: "high", status: "pending", summary: "Synthetic: multiple failed identity verification attempts." },
 ];
+
+// Clearly fictional refund requests for the read-only refunds dashboard.
+export type RefundStatus = "pending" | "approved" | "rejected" | "processed";
+
+export type SeedRefund = {
+  id: string;
+  customerName: string;
+  email: string;
+  amountCents: number; // integer minor units
+  currency: string; // ISO 4217
+  status: RefundStatus;
+  requestedAt: string; // ISO date
+  reason: string;
+};
+
+export const SEED_REFUNDS: SeedRefund[] = [
+  { id: "REF-2001", customerName: "Uma Larkspur", email: "uma.larkspur@example.com", amountCents: 4999, currency: "USD", status: "pending", requestedAt: "2026-09-11T09:20:00Z", reason: "Synthetic: duplicate charge on the same order." },
+  { id: "REF-2002", customerName: "Vik Thistle", email: "vik.thistle@example.com", amountCents: 12000, currency: "EUR", status: "approved", requestedAt: "2026-09-11T13:05:00Z", reason: "Synthetic: subscription cancelled within the trial window." },
+  { id: "REF-2003", customerName: "Wren Halloway", email: "wren.halloway@example.com", amountCents: 250, currency: "USD", status: "processed", requestedAt: "2026-09-12T08:45:00Z", reason: "Synthetic: small overcharge from a pricing display error." },
+  { id: "REF-2004", customerName: "Xan Petrel", email: "xan.petrel@example.com", amountCents: 8999, currency: "GBP", status: "rejected", requestedAt: "2026-09-12T15:30:00Z", reason: "Synthetic: request made after the 30-day return window." },
+  { id: "REF-2005", customerName: "Yara Coldbrook", email: "yara.coldbrook@example.com", amountCents: 1999, currency: "USD", status: "pending", requestedAt: "2026-09-13T10:10:00Z", reason: "Synthetic: item arrived damaged; photo attached to ticket." },
+  { id: "REF-2006", customerName: "Zed Marlin", email: "zed.marlin@example.com", amountCents: 30000, currency: "USD", status: "approved", requestedAt: "2026-09-13T16:55:00Z", reason: "Synthetic: service outage credit agreed by support." },
+  { id: "REF-2007", customerName: "Ansel Rook", email: "ansel.rook@example.com", amountCents: 750, currency: "EUR", status: "processed", requestedAt: "2026-09-14T09:00:00Z", reason: "Synthetic: shipping fee refunded after late delivery." },
+  { id: "REF-2008", customerName: "Bea Tallis", email: "bea.tallis@example.com", amountCents: 15900, currency: "GBP", status: "pending", requestedAt: "2026-09-14T14:25:00Z", reason: "Synthetic: customer disputes recurring charge they did not recognise." },
+  { id: "REF-2009", customerName: "Cato Fenwick", email: "cato.fenwick@example.com", amountCents: 5500, currency: "USD", status: "rejected", requestedAt: "2026-09-15T11:40:00Z", reason: "Synthetic: digital goods already downloaded; policy excludes refund." },
+  { id: "REF-2010", customerName: "Dune Ashcombe", email: "dune.ashcombe@example.com", amountCents: 2499, currency: "USD", status: "pending", requestedAt: "2026-09-15T17:15:00Z", reason: "Synthetic: order cancelled before dispatch, awaiting confirmation." },
+];
