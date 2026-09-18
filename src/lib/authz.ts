@@ -13,7 +13,7 @@ const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
   reviewer: new Set<Permission>(["cases:read", "cases:decide"]),
 };
 
-export function can(actor: Actor | null, permission: Permission): actor is Actor {
+export function can(actor: Actor | null, permission: Permission): boolean {
   if (!actor) return false;
   return ROLE_PERMISSIONS[actor.role].has(permission);
 }
