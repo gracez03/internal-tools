@@ -1,8 +1,9 @@
 /**
  * Repeatable, non-destructive demo setup:
  *  1. create .env from .env.example if missing (with a random BETTER_AUTH_SECRET)
- *  2. apply pending migrations (prisma migrate deploy)
- *  3. seed demo accounts + cases (idempotent: existing rows are left alone)
+ *  2. regenerate the Prisma client from the current schema (prisma generate)
+ *  3. apply pending migrations (prisma migrate deploy)
+ *  4. seed demo accounts + cases (idempotent: existing rows are left alone)
  */
 import { execSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -29,6 +30,7 @@ const run = (cmd: string) => {
   execSync(cmd, { cwd: root, stdio: "inherit" });
 };
 
+run("npx prisma generate");
 run("npx prisma migrate deploy");
 run("npx prisma db seed");
 
