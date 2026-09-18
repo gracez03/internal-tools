@@ -3,7 +3,7 @@ import "./globals.css";
 import { DemoBanner } from "@/components/DemoBanner";
 
 export const metadata: Metadata = {
-  title: "Fintech Ops Console — KYC Review (Demo)",
+  title: "Fintech Ops Console (Demo)",
   description: "Internal tool prototype. Synthetic data only.",
 };
 
