@@ -11,8 +11,9 @@ export function QueueFilters({
   risks: readonly string[];
 }) {
   const hasFilters = Boolean(filters.q || filters.status || filters.risk);
+  const formKey = `${filters.q ?? ""}|${filters.status ?? ""}|${filters.risk ?? ""}`;
   return (
-    <form className="inline" method="get" action="/cases">
+    <form key={formKey} className="inline" method="get" action="/cases">
       <label>
         Search
         <input
