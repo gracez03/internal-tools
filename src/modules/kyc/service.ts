@@ -15,10 +15,12 @@ import {
  * a route handler, or a test.
  */
 
+const STATUS_ORDER: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
+
 export async function listCases(actor: Actor | null, filters: CaseListFilters) {
   requirePermission(actor, "cases:read");
   const q = filters.q?.trim();
-  return prisma.kycCase.findMany({
+  const cases = await prisma.kycCase.findMany({
     where: {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.risk ? { riskLevel: filters.risk } : {}),
@@ -32,8 +34,10 @@ export async function listCases(actor: Actor | null, filters: CaseListFilters) {
           }
         : {}),
     },
-    orderBy: [{ status: "asc" }, { submittedAt: "asc" }],
+    orderBy: { submittedAt: "asc" },
   });
+  // Pending work first; SQLite has no CASE ordering through Prisma.
+  return cases.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
 }
 
 export async function getCaseWithHistory(actor: Actor | null, caseId: string) {
