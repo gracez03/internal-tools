@@ -5,7 +5,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { DataTable, type Column } from "@/components/DataTable";
 import { RiskBadge, StatusBadge } from "@/components/Badge";
 import { listCases } from "@/modules/kyc/service";
-import { CASE_STATUSES, RISK_LEVELS, caseListFiltersSchema } from "@/modules/kyc/types";
+import { CASE_STATUSES, RISK_LEVELS, parseCaseListFilters } from "@/modules/kyc/types";
 import { QueueFilters } from "./QueueFilters";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +31,11 @@ export default async function CasesPage({
 
   const sp = await searchParams;
   const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
-  const parsed = caseListFiltersSchema.safeParse({
+  const { filters, invalid } = parseCaseListFilters({
     q: first(sp.q),
     status: first(sp.status),
     risk: first(sp.risk),
   });
-  const filters = parsed.success ? parsed.data : {};
   const cases = await listCases(actor, filters);
   const pendingCount = cases.filter((c) => c.status === "pending").length;
 
@@ -48,7 +47,7 @@ export default async function CasesPage({
           <h2>KYC review queue</h2>
           <p className="muted" style={{ marginTop: 0 }}>
             {cases.length} case{cases.length === 1 ? "" : "s"} shown, {pendingCount} pending.
-            {!parsed.success ? " Some filter values were invalid and ignored." : ""}
+            {invalid.length > 0 ? ` Ignored invalid ${invalid.join(", ")} filter${invalid.length === 1 ? "" : "s"}.` : ""}
           </p>
           <QueueFilters
             filters={filters}

@@ -32,6 +32,27 @@ export const caseListFiltersSchema = z.object({
 });
 export type CaseListFilters = z.infer<typeof caseListFiltersSchema>;
 
+export type RawCaseListFilters = { q?: string; status?: string; risk?: string };
+
+/** Parses each filter independently so one invalid value does not drop the others. */
+export function parseCaseListFilters(raw: RawCaseListFilters): {
+  filters: CaseListFilters;
+  invalid: (keyof CaseListFilters)[];
+} {
+  const filters: CaseListFilters = {};
+  const invalid: (keyof CaseListFilters)[] = [];
+  const q = caseListFiltersSchema.shape.q.safeParse(raw.q || undefined);
+  if (q.success) filters.q = q.data;
+  else invalid.push("q");
+  const status = caseListFiltersSchema.shape.status.safeParse(raw.status || undefined);
+  if (status.success) filters.status = status.data;
+  else invalid.push("status");
+  const risk = caseListFiltersSchema.shape.risk.safeParse(raw.risk || undefined);
+  if (risk.success) filters.risk = risk.data;
+  else invalid.push("risk");
+  return { filters, invalid };
+}
+
 export const DECISION_TO_STATUS: Record<Decision, CaseStatus> = {
   approve: "approved",
   reject: "rejected",
