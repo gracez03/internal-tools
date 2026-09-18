@@ -15,8 +15,9 @@ tools like this in-house. Two modules exist:
 
 ## Prerequisites
 
-- Node.js >= 24 (see `.nvmrc`; run `nvm use` to select it). Developed and
-  verified on Node 24.19.0 / npm 11.
+- Node.js >= 24 (see `.nvmrc`; run `nvm use` to select it). Developed on
+  Node 24.19.0; the clean-start sequence below was last verified on
+  Node 24.21.0 / npm 11.19.0.
 - npm (ships with Node). No Docker, cloud accounts, or API keys are needed.
 
 ## Quick start
@@ -64,6 +65,22 @@ sign-up is disabled; accounts are created only by the seed script.
 | `npm test`                         | Vitest suite against the real route handlers on an isolated `prisma/test.db`                                    |
 | `npm run db:migrate`               | `prisma migrate dev` (development schema changes)                                                              |
 
+### Clean-start verification
+
+The sequence used to verify a fresh clone with a fresh database (no `.env`,
+no `prisma/*.db`, no `node_modules`):
+
+```bash
+git clone https://github.com/gracez03/internal-tools.git && cd internal-tools
+npm ci                          # postinstall runs prisma generate
+npm run setup:demo              # .env + migrations + seed (fresh prisma/dev.db)
+npm run typecheck
+npm test                        # isolated prisma/test.db, 47 tests
+npm run build
+npm start                       # http://localhost:3000 — sign in with a demo account
+npm run reset:demo:destructive  # optional: wipe prisma/dev.db and re-seed
+```
+
 ### Environment
 
 Copy `.env.example` to `.env` (or let `setup:demo` do it). Variables:
@@ -94,6 +111,38 @@ Copy `.env.example` to `.env` (or let `setup:demo` do it). Variables:
   requests to the page redirect to `/login` and to `GET /api/refunds` get `401`.
   There is no detail page and no write endpoint.
 - A persistent **"Demo — synthetic data only"** banner is shown on every page.
+
+### Capability status
+
+**Implemented (real logic, tested):**
+
+- Email/password login with server-side sessions (Better Auth); sign-up disabled
+- Two roles (`viewer`, `reviewer`) with a server-enforced permission map
+- KYC queue with search and status/risk filters; case detail with history
+- Approve/reject of pending cases with a required reason; pending-only
+  transition; conflict (`409`) on repeated, stale or concurrent decisions
+- Append-only decision history (transactional write + SQLite triggers) that
+  snapshots the actor's id, email, name and role at decision time
+- Read-only refunds table with a status filter and `GET /api/refunds`
+- Same-origin check on the decision endpoint
+- Idempotent demo setup, destructive reset, isolated test database
+
+**Simulated (synthetic stand-ins, no real integration):**
+
+- KYC cases: seeded fictional applicants with a free-text `summary` and a
+  pre-assigned risk level. There is no document upload, identity verification,
+  sanctions/PEP screening or risk scoring — the case *is* the seed row.
+- Refund requests: 10 seeded rows. No payment processor, ledger or money movement.
+- Users: two seeded demo accounts. No directory, SSO or provisioning.
+
+**Not built:**
+
+- Any write path for refunds (approve/reject/pay), refund detail page
+- Admin UI for users/roles, password reset, MFA, session management
+- Pagination, sorting controls, bulk actions, case assignment, SLA timers,
+  comments or attachments
+- Generic audit log beyond `case_history`; audit of logins
+- CI configuration, deployment configuration, monitoring
 
 ## Architecture
 
@@ -129,6 +178,19 @@ src/app/
 src/components/            AppHeader, DemoBanner, Badge, DataTable, Alert, SignOutButton
 tests/                     Vitest: authz, decisions, queue-filters, refunds-read, global-setup
 ```
+
+### Where the security-relevant logic lives
+
+| Concern | File(s) |
+| --- | --- |
+| Actor derived from the session only (`{id, email, name, role}`) | `src/lib/session.ts` |
+| Permission map + `can` / `requirePermission` (401 / 403) | `src/lib/authz.ts` |
+| Better Auth config (`disableSignUp`, `role` field `input: false`) | `src/lib/auth.ts` |
+| Decision logic (validation, pending-only transition, transaction, 409) | `src/modules/kyc/service.ts` → `decideCase` |
+| Refunds read (permission check, no writes) | `src/modules/refunds/service.ts` → `listRefunds` |
+| History writes (the only writer; transaction client only) | `src/lib/history.ts` → `appendHistory`; seed rows in `prisma/seed.ts` |
+| Append-only triggers on `case_history` | `prisma/migrations/20260918181319_init/migration.sql`, `prisma/migrations/20260918201300_history_actor_snapshot/migration.sql` |
+| Entry points that call the above | `src/app/api/cases/**`, `src/app/api/refunds/route.ts`, `src/app/cases/**`, `src/app/refunds/page.tsx` |
 
 ### Authorization
 
