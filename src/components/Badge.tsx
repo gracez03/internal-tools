@@ -1,4 +1,12 @@
-type Tone = "pending" | "approved" | "rejected" | "low" | "medium" | "high" | "neutral";
+type Tone =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "processed"
+  | "low"
+  | "medium"
+  | "high"
+  | "neutral";
 
 export function Badge({ tone, children }: { tone: Tone; children: React.ReactNode }) {
   return <span className={`badge badge-${tone}`}>{children}</span>;
@@ -6,7 +14,9 @@ export function Badge({ tone, children }: { tone: Tone; children: React.ReactNod
 
 export function StatusBadge({ status }: { status: string }) {
   const tone: Tone =
-    status === "pending" || status === "approved" || status === "rejected" ? status : "neutral";
+    status === "pending" || status === "approved" || status === "rejected" || status === "processed"
+      ? status
+      : "neutral";
   return <Badge tone={tone}>{status}</Badge>;
 }
 

@@ -1,9 +1,14 @@
-# internal-tools — Fintech Ops Console (KYC review queue)
+# internal-tools — Fintech Ops Console (KYC review queue + read-only refunds view)
 
 A prototype internal tool built to evaluate whether engineers can build and own
-tools like this in-house. The first (and only) module is a **KYC review queue**:
-reviewers approve or reject pending cases with a required reason, and every
-decision is recorded in an append-only history.
+tools like this in-house. Two modules exist:
+
+- **KYC review queue** — reviewers approve or reject pending cases with a
+  required reason, and every decision is recorded in an append-only history.
+- **Refunds (read-only)** — a table of seeded refund requests with a status
+  filter. It was added to check that the shared layout, auth, authorization
+  helpers, database setup and table components can be reused by a second
+  module. It has no actions: nothing in the app can approve, edit or pay a refund.
 
 > **Demo — synthetic data only.** Every case, name and email in this repo is
 > fictional. There are no real identity documents or personal data.
@@ -27,10 +32,10 @@ already exist, so decisions you have made in the demo are kept.
 
 ### Demo accounts
 
-| Role     | Email                  | Password             | Can do                                   |
-| -------- | ---------------------- | -------------------- | ---------------------------------------- |
-| viewer   | `viewer@example.com`   | `viewer-demo-pass`   | Read cases and history                   |
-| reviewer | `reviewer@example.com` | `reviewer-demo-pass` | Read, and approve/reject pending cases   |
+| Role     | Email                  | Password             | Can do                                                    |
+| -------- | ---------------------- | -------------------- | --------------------------------------------------------- |
+| viewer   | `viewer@example.com`   | `viewer-demo-pass`   | Read cases and history; read refund requests              |
+| reviewer | `reviewer@example.com` | `reviewer-demo-pass` | Read, and approve/reject pending cases; read refund requests |
 
 Roles are attached to the account in the database and read from the server-side
 session. There is no role switcher; sign out and sign in as the other account.
@@ -43,7 +48,7 @@ sign-up is disabled; accounts are created only by the seed script.
 
 | Command                            | What it does                                                                                                   |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `npm run setup:demo`               | Create `.env` (if missing) with a random `BETTER_AUTH_SECRET`, `prisma migrate deploy`, seed accounts + cases   |
+| `npm run setup:demo`               | Create `.env` (if missing) with a random `BETTER_AUTH_SECRET`, `prisma migrate deploy`, seed accounts + cases + refunds |
 | `npm run reset:demo:destructive`   | **Destructive.** Drops `prisma/dev.db`, re-applies all migrations and re-seeds. All demo decisions are lost.     |
 | `npm run dev`                      | Start the Next.js dev server                                                                                   |
 | `npm run build` / `npm start`      | Production build / serve                                                                                       |
@@ -75,15 +80,20 @@ Copy `.env.example` to `.env` (or let `setup:demo` do it). Variables:
 - **Persistence** — decisions live in SQLite and survive refresh and restart.
 - **States** — client validation, loading (`loading.tsx`), empty, 404, error
   boundary (`error.tsx`), and network / conflict errors on the decision form.
+- **Refunds** (`/refunds`) — read-only table of 10 seeded refund requests
+  (request ID, customer, amount in cents, currency, status, requested date,
+  reason) with a status filter. Both roles can read it; unauthenticated
+  requests to the page redirect to `/login` and to `GET /api/refunds` get `401`.
+  There is no detail page and no write endpoint.
 - A persistent **"Demo — synthetic data only"** banner is shown on every page.
 
 ## Architecture
 
 ```
 prisma/
-  schema.prisma            Better Auth tables + KycCase + CaseHistory
+  schema.prisma            Better Auth tables + KycCase + CaseHistory + RefundRequest
   migrations/*/migration.sql  includes the append-only triggers on case_history
-  seed.ts, seed-data.ts    demo accounts (Better Auth password hashing) + 20 cases
+  seed.ts, seed-data.ts    demo accounts (Better Auth password hashing) + 20 cases + 10 refunds
 scripts/
   setup-demo.ts            non-destructive setup;  reset-demo.ts  destructive reset
 src/lib/                   SHARED foundation (no KYC knowledge)
@@ -97,20 +107,26 @@ src/lib/                   SHARED foundation (no KYC knowledge)
 src/modules/kyc/           KYC-SPECIFIC business logic
   types.ts                 Zod schemas: statuses, risk levels, decision input, filters
   service.ts               listCases / getCaseWithHistory / decideCase
+src/modules/refunds/       REFUNDS (read-only)
+  types.ts                 Zod schema: refund statuses, status filter parsing
+  service.ts               listRefunds — the module's only operation
 src/app/
   login/                   login page + client form
   cases/                   queue (server component) + filters, loading, error
   cases/[id]/              detail page, DecisionForm (client), not-found
+  refunds/                 read-only table (server component) + status filter, loading, error
   api/auth/[...all]        Better Auth handler
   api/cases, api/cases/[id], api/cases/[id]/decision   JSON endpoints
+  api/refunds              GET only
 src/components/            AppHeader, DemoBanner, Badge, DataTable, Alert, SignOutButton
-tests/                     Vitest: authz.test.ts, decisions.test.ts, global-setup.ts
+tests/                     Vitest: authz, decisions, queue-filters, refunds-read, global-setup
 ```
 
 ### Authorization
 
 Every protected read and every mutation goes through `requirePermission(actor,
-permission)` inside `src/modules/kyc/service.ts`, where `actor` is produced by
+permission)` inside `src/modules/kyc/service.ts` and
+`src/modules/refunds/service.ts`, where `actor` is produced by
 `src/lib/session.ts` from the Better Auth session cookie. Pages, route handlers
 and tests all call the same service functions, so hiding a button in the UI is
 never the only check. The request body is parsed with a strict Zod schema that
@@ -140,21 +156,22 @@ row (rename, role change) do not alter what past decisions show. The
 This is **not** tamper-proof or compliance-grade: anyone with access to the
 SQLite file can change or drop the triggers and rows.
 
-### Shared vs KYC-specific code, and where a second tool would go
+### Shared vs module-specific code
 
 - Shared, module-agnostic: everything in `src/lib/` (db, auth, session, authz,
   history writer, error helpers) and `src/components/`.
 - KYC-specific: `src/modules/kyc/`, `src/app/cases/**`, `src/app/api/cases/**`,
   the `KycCase`/`CaseHistory` models and the seed data.
+- Refunds-specific: `src/modules/refunds/`, `src/app/refunds/**`,
+  `src/app/api/refunds/route.ts`, the `RefundRequest` model and its seed data.
 
-A second module (e.g. a chargeback or refund queue) would slot in as
-`src/modules/<name>/` + `src/app/<name>/**` + `src/app/api/<name>/**`, add its
-own Prisma models, register its permissions in `src/lib/authz.ts`, and reuse
-the session/authz helpers, the history writer pattern, and the layout/table/
-badge/form components. This reuse is a design intent, **not yet proven** — only
-one module exists. Note that `history.ts` currently writes to `case_history`
-with a `caseId`; a second module would either generalise that table or add its
-own history table using the same writer pattern and trigger.
+The refunds module followed the layout the KYC module established
+(`src/modules/<name>/` + `src/app/<name>/**` + `src/app/api/<name>/**`, one
+Prisma model, one permission registered in `src/lib/authz.ts`) and reused the
+session/authz helpers, the Prisma singleton, `AppHeader`, `DataTable` and
+`StatusBadge` unchanged apart from adding a nav and one badge tone. It did not
+need the history writer because it performs no writes; whether `history.ts`
+generalises to a second table remains untested.
 
 ## Tests
 
@@ -180,6 +197,11 @@ sessions obtained from Better Auth. Covered:
   actor shown in that case's history
 - queue filters: one invalid `status`/`risk`/`q` value is ignored and reported
   without dropping the other, valid filters
+- refunds: unauthenticated and forged-cookie requests get `401` with no data;
+  viewer and reviewer both get all 10 seeded rows with every field; status
+  filter works for each status, an invalid status is ignored and reported, an
+  empty status is no filter; the route module exports `GET` only; reads change
+  no rows; adding `refunds:read` left KYC permissions unchanged
 
 Not covered by automated tests: an authenticated cross-origin request from a
 real browser session (only the route-handler test with a foreign `Origin`
@@ -197,7 +219,7 @@ header covers this).
   assignment/ownership of cases, no SLA timers, no comments/attachments.
 - No rate limiting, request logging, or monitoring beyond console output.
 - History is scoped to KYC cases; a generic audit log for other modules is not
-  built.
+  built. The refunds view has no history because it has no actions.
+- Refunds are read-only seeded rows: no approval, payment provider, money
+  movement, detail page, pagination or search.
 - No CI configuration is included in this repository.
-- Only one module exists; the "shared foundation" has not been exercised by a
-  second tool.

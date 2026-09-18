@@ -55,7 +55,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <>
-      <AppHeader actor={actor} />
+      <AppHeader actor={actor} section="cases" />
       <main className="container">
         <p style={{ marginTop: 0 }}>
           <Link href="/cases">← Back to queue</Link>

@@ -41,7 +41,7 @@ export default async function CasesPage({
 
   return (
     <>
-      <AppHeader actor={actor} />
+      <AppHeader actor={actor} section="cases" />
       <main className="container">
         <div className="card">
           <h2>KYC review queue</h2>
