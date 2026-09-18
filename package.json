@@ -3,6 +3,38 @@
   "version": "0.0.0",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "setup:demo": "tsx scripts/setup-demo.ts",
+    "reset:demo:destructive": "tsx scripts/reset-demo.ts",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "better-auth": "1.7.4",
+    "next": "15.5.25",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "prisma": "6.19.3",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
   }
 }

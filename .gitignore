@@ -141,3 +141,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# SQLite databases (local demo + test)
+prisma/*.db
+prisma/*.db-journal
