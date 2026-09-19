@@ -1,5 +1,9 @@
 # internal-tools — Fintech Ops Console (KYC review queue + read-only refunds view)
 
+**TLDR To run it:** `npm ci && npm run setup:demo && npm run dev` → http://localhost:3000.
+Sign in as `reviewer@example.com` / `reviewer-demo-pass`. Details in
+[Quick start](#quick-start).
+
 A prototype internal tool built to evaluate whether engineers can build and own
 tools like this in-house. Two modules exist:
 
@@ -80,6 +84,10 @@ npm run build
 npm start                       # http://localhost:3000 — sign in with a demo account
 npm run reset:demo:destructive  # optional: wipe prisma/dev.db and re-seed
 ```
+
+Note: `npm test` prints several `prisma:error` lines. These are expected — the
+append-only tests attempt UPDATE and DELETE against case_history and assert
+the database trigger rejects them. The suite passes 47/47.
 
 ### Environment
 
@@ -232,8 +240,9 @@ SQLite file can change or drop the triggers and rows.
 
 ### Shared vs module-specific code
 
-- Shared, module-agnostic: everything in `src/lib/` (db, auth, session, authz,
-  history writer, error helpers) and `src/components/`.
+- Shared, module-agnostic: `src/lib/` (db, auth, session, authz, error helpers)
+  and `src/components/`. `history.ts` lives there but is coupled to the
+  KycCase model — see the note under Architecture.
 - KYC-specific: `src/modules/kyc/`, `src/app/cases/**`, `src/app/api/cases/**`,
   the `KycCase`/`CaseHistory` models and the seed data.
 - Refunds-specific: `src/modules/refunds/`, `src/app/refunds/**`,
